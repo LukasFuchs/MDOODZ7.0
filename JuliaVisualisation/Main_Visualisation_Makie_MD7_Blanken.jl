@@ -14,12 +14,12 @@ const cm_y = y*100.
 @views function main()
 
     # Set the path to your files
-    path ="/home/fuchs/progs/src/MDOODZ/runs/BlankenBench/"
+    path ="/home/fuchs/MDOODZ/ThermalConvection2D/ISO_Ra1e5/"
 
     # File numbers
     file_start = 0
-    file_step  = 1000
-    file_end   = 9000
+    file_step  = 100
+    file_end   = 2000
 
     # Select field to visualise
     # field = :Phases
