@@ -166,6 +166,7 @@ typedef struct {
   double ppzm[20], Kpzm[20], Qpzm[20], Vpzm[20], Gpzm[20], cpzm[20], Lpzm[20],
           gs_ref[20];
   double Skin[20], kkin[20], Qkin[20];
+  double Ear[20], T_O[20], T_E[20], T_s[20]; // Arrhenius-like viscosity (Tackley, 2000), cstv = 2
   int    kin[20], gs[20], cstv[20], pwlv[20], linv[20], expv[20], gbsv[20],
           phase_diagram[20], density_model[20];
   double C_end[20], phi_end[20], psi_end[20], pls_start[20], pls_end[20],

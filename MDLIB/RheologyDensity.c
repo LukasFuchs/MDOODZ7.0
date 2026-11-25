@@ -382,6 +382,24 @@ void LocalIterationViscoElasticGrainSize(LocalIterationMutables mutables, LocalI
 /*------------------------------------------------------ M-Doodz -----------------------------------------------------*/
 /*--------------------------------------------------------------------------------------------------------------------*/
 
+// Arrhenius-like viscosity after Tackley (2000), same form as LaMEM (lukas_arrh) and CitcomCU (rheol 11/12):
+// eta = eta0 * exp( Ear/(R*(dT + T_O)) - Ear/(R*(T_E + T_O)) ),  dT = max(T - T_s, 0)
+// Nondimensional: eta = eta0 * exp( E/(T* + T_O*) - E/(T_E* + T_O*) ), E = Ear/(R*DeltaT)
+// eta0 is the viscosity at dT = T_E. T* < 0 is clipped to 0 as in CitcomCU.
+double ArrheniusTackleyViscosity( int phase, double T, mat_prop *materials ) {
+  double dT = T - materials->T_s[phase];
+  if ( dT < 0.0 ) dT = 0.0;
+  const double R  = materials->R;
+  const double Ea = materials->Ear[phase];
+  const double TO = materials->T_O[phase];
+  const double TE = materials->T_E[phase];
+  return materials->eta0[phase] * exp( Ea/(R*(dT + TO)) - Ea/(R*(TE + TO)) );
+}
+
+/*--------------------------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------ M-Doodz -----------------------------------------------------*/
+/*--------------------------------------------------------------------------------------------------------------------*/
+
 double ViscosityConcise( int phase, double G, double T, double P, double d, double phi, double X0, double Exx, double Ezz, double Exz, double Txx0, double Tzz0, double Txz0, mat_prop* materials, params *model, scale *scaling, double *Txx, double *Tzz, double *Txz, double* etaVE, double* VEcoeff, double* Eii_el, double* Eii_pl, double* Eii_pwl, double* Eii_exp , double* Eii_lin, double* Eii_gbs, double* Eii_cst, double *d1, double strain_acc, double dil, double fric, double C, double P0, double T0,  double *X1, double *OverS, double *Pcorr, double *rho, double beta, double div, double *div_el, double *div_pl, double *div_r, double *Wtot, double *Wel, double *Wdiss, int post_process, int centroid, int final_update, int index ) {
 
   // printf("P0 in 1 = %.4e\n", P0);
@@ -558,6 +576,7 @@ double ViscosityConcise( int phase, double G, double T, double P, double d, doub
   // Isolated viscosities
   eta_el   = G*dt;
   if ( constant    == 1 )              eta_cst  = materials->eta0[phase];
+  if ( constant    == 1 && materials->cstv[phase] == 2 ) eta_cst = ArrheniusTackleyViscosity( phase, T, materials );
   if ( constant_mix== 1 && mix_avg==0) eta_cst  =     X0*materials->eta0[phase] + (1-X0)*materials->eta0[phase_two];
   if ( constant_mix== 1 && mix_avg==1) eta_cst  = pow(X0/materials->eta0[phase] + (1-X0)/materials->eta0[phase_two], -1.0);
   if ( constant_mix== 1 && mix_avg==2) eta_cst  = exp(X0*log(materials->eta0[phase]) + (1-X0)*log(materials->eta0[phase_two]));

@@ -644,6 +644,7 @@ double          Interpolate2Ddata( double, double, double, double, double, doubl
 double          EvaluateDensity(int, double, double, double, double, params *, mat_prop *);
 void            ComputeMeanQuantitesForTimeSeries(grid *mesh);
 void            ComputeNusseltNumber(grid *mesh);
+double          ArrheniusTackleyViscosity(int phase, double T, mat_prop *materials);
 void            LogTimeSeries(grid *, params, scale);
 void            MinMaxArray(double *array, double scale, int size, char *text);
 

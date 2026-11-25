@@ -1450,6 +1450,21 @@ Input ReadInputFile( char *fileName ) {
         materials.eps0[k]     = ReadMatProps( fin,     "eps0", k,  1e-14  ) / scaling.E;
         materials.tau0[k]     = ReadMatProps( fin,     "tau0", k,    2e6  ) / scaling.S;
         materials.eta0[k]     = ReadMatProps( fin,     "eta0", k, 1.0e20  ) / scaling.eta;
+        // Arrhenius-like viscosity (Tackley, 2000), active with cstv = 2:
+        // eta = eta0 * exp( Ear/(R*(T - T_s + T_O)) - Ear/(R*(T_E + T_O)) )
+        // T_O and T_E are temperature differences relative to T_s [K]; T_s is absolute [K]
+        materials.Ear[k]      = ReadMatProps( fin,      "Ear", k,    0.0  ) / scaling.J;
+        materials.T_O[k]      = ReadMatProps( fin,      "T_O", k,    0.0  ) / scaling.T;
+        materials.T_E[k]      = ReadMatProps( fin,      "T_E", k,    0.0  ) / scaling.T;
+        materials.T_s[k]      = ReadMatProps( fin,      "T_s", k,  zeroC  ) / scaling.T;
+        if ( materials.cstv[k] == 2 ) {
+            if ( materials.Ear[k] <= 0.0 || materials.T_O[k] <= 0.0 || materials.T_E[k] + materials.T_O[k] <= 0.0 ) {
+                LOG_ERR("Phase %d: cstv = 2 (Arrhenius-like viscosity) needs Ear > 0, T_O > 0 and T_E + T_O > 0", k);
+                exit(12);
+            }
+            LOG_INFO("Arrhenius-like viscosity (Tackley 2000): eta0 = %2.2e Pa.s at T_E, Ear = %2.4e J/mol, T_O = %2.2lf K, T_E = %2.2lf K, T_s = %2.2lf K",
+                     materials.eta0[k]*scaling.eta, materials.Ear[k]*scaling.J, materials.T_O[k]*scaling.T, materials.T_E[k]*scaling.T, materials.T_s[k]*scaling.T);
+        }
         materials.npwl[k]     = ReadMatProps( fin,     "npwl", k,    1.0  );
         materials.Qpwl[k]     = ReadMatProps( fin,     "Qpwl", k,    0.0  );
         materials.Apwl[k]     = ReadMatProps( fin,     "Apwl", k,    0.0  );

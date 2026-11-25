@@ -387,6 +387,7 @@ double ViscosityConciseAniso( int phase, double lxlz, double lx2, double angle, 
     // Construct initial guess for viscosity: Isolated viscosities
     double Eii = sqrt(I2( &E_rot ));
     if (constant)    eta_cst  = materials->eta0[phase];
+    if (constant && materials->cstv[phase] == 2) eta_cst = ArrheniusTackleyViscosity( phase, T, materials );
     if (dislocation) eta_pwl  = B_pwl * pow( Eii, (1-n_pwl)/n_pwl );
     if (elastic)     eta_el   = G*dt;
 
