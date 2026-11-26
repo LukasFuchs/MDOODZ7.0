@@ -1,0 +1,145 @@
+/**** ThermalConvection2D_Ref ****/
+/ CitcomCU reference model (Fuchs & Becker 2019, no strain weakening), equivalent of
+/ ThermalConvection.jl models/03_IH_ref/run_IH_ref.jl and LaMEM 9a material parameters.
+/ D = 2890 km, DeltaT = 1300 K, kappa = 1e-6 m2/s:
+/   Ra = rho g alpha DeltaT D^3/(kappa eta0) = 1.0e5 (eta0 at T* = 1)
+/   stress scale eta0 kappa/D^2 = 12.163 kPa -> sigma_y = 4e3 -> C = 48.65 MPa
+/   Q = 10 -> Qr = rho H = 3300 x 1.946e-12 W/kg = 6.4218e-9 W/m3
+/   time scale D^2/kappa = 264.7 Gyr, velocity scale kappa/D = 3.46e-13 m/s
+/   nondim. surface heat flux q* = q_top D/(k DeltaT); q* = 10 <-> q_top = 18.56 mW/m2
+
+/**** RESTART ****/
+istep    = 0
+irestart = 0
+
+/**** OUTPUT FILES ****/
+writer            = 1
+writer_step       = 1000
+writer_markers    = 0
+writer_debug      = 0
+writer_energies   = 0
+gnuplot_log_res   = 0
+writer_subfolder  = ./
+
+/**** SCALES ****/
+eta = 1.0e23
+L   = 1.0e6
+V   = 1.0e-10
+T   = 1.0e3
+
+/**** SPACE ****/
+/ 512 x 64 cells as run_IH_ref.jl (NZ = 64); 768 x 96: Nx = 769, Nz = 97
+Nx      = 513
+Nz      = 65
+xmin    = 0.0
+zmin    = -2.89e6
+xmax    = 2.312e7
+zmax    = 0.0
+
+/**** PARTICLES ****/
+Nx_part       = 5
+Nz_part       = 5
+min_part_cell = 16
+max_part_cell = 64
+
+/**** TIME ****/
+Nt          = 200000
+constant_dt = 0
+Courant     = 0.5
+dt          = 1.0e12
+RK          = 4
+
+/**** LINEAR SOLVER ****/
+noisy        = 0
+penalty      = 1e6
+lin_solver   = 2
+diag_scaling = 0
+lin_abs_div  = 1e-10
+lin_rel_div  = 1e-10
+lin_abs_mom  = 1e-10
+lin_rel_mom  = 1e-10
+
+/**** NON-LINEAR SOLVER ****/
+/ run_IH_ref.jl: Newton, rtol 1e-5, max. 30 iterations
+Newton            = 1
+Picard2Newton     = 1
+Picard2Newton_tol = 1e-1
+max_its_Pic       = 10
+line_search       = 1
+line_search_min   = 0.1
+let_res_grow      = 0
+nit_max           = 30
+rel_tol_KSP       = 1e-4
+nonlin_abs_mom    = 1e-12
+nonlin_rel_mom    = 1e-5
+nonlin_abs_div    = 1e-12
+nonlin_rel_div    = 1e-5
+
+/**** VISCOSITY CUT-OFF ****/
+/ eta(T* = 0) = 1.0021e5 eta0 = 1.018e28 Pa.s -> no upper clip; lower bound set by eta_vp
+min_eta      = 1e20
+max_eta      = 1e29
+
+/**** SWITCHES ****/
+mechanical        = 1
+thermal           = 1
+reseed_markers    = 1
+reseed_mode       = 2
+anisotropy        = 0
+elastic           = 0
+free_surface      = 0
+free_surface_stab = 0
+finite_strain     = 0
+advection         = 1
+shear_heating     = 0
+adiab_heating     = 0
+subgrid_diffusion = 1
+thermal_solver    = 1
+
+/**** SETUP-DEPENDANT ****/
+shear_style     = 0
+periodic_x      = 0
+pure_shear_ALE  = 0
+bkg_strain_rate = 0
+user0           = 0.0        / surface temperature T_s [C] (273.15 K)
+user1           = 1300.0     / DeltaT [K]
+user2           = 0.25       / amplitude of the initial perturbation (nondim.)
+user3           = 0
+
+/**** GRAVITY ****/
+gx = 0.0
+gz = -9.81
+
+/**** MAT PROPERTIES ****/
+Nb_phases = 1
+
+/**** PHASE 1 ****/
+ID            = 0
+rho           = 3300.0
+Cp            = 1250.0
+k             = 4.125      / kappa = 1e-6 m2/s
+Qr            = 6.4218e-9  / W/m3 (= 3300 x 1.946e-12 W/kg)
+alp           = 1.0e-5
+bet           = 0
+drho          = 0
+density_model = 1          / rho = rho0 (1 - alp (T - 273.15 K)), bet = 0
+/ Arrhenius-like viscosity (Tackley 2000): eta = eta0 exp(Ear/(R(T - T_s + T_O)) - Ear/(R(T_E + T_O)))
+cstv          = 2
+eta0          = 1.01583e23 / viscosity at T_E (T* = 1)
+Ear           = 248927.0   / J/mol, E = Ear/(R DeltaT) = 23.03
+T_O           = 1300.0     / K, offset (T* + 1)
+T_E           = 1300.0     / K above T_s (T_E* = 1)
+T_s           = 273.15     / K, surface temperature
+pwlv          = 0
+linv          = 0
+gbsv          = 0
+expv          = 0
+gsel          = 0
+/ constant yield stress (von Mises): sigma_y = 4e3 x 12.163 kPa
+plast         = 1
+C             = 4.865e7
+phi           = 0.0
+psi           = 0.0
+eta_vp        = 1.01583e21 / viscoplastic floor, 1e-2 eta0 (eta_vp in run_IH_ref.jl)
+n_vp          = 1.0
+interp_mode   = 3

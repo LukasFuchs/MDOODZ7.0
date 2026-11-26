@@ -354,6 +354,14 @@ void LoadBreakpointParticles( markers *particles, grid* mesh, markers *topo_chai
         fread(mesh->Vrms_time,      s3, nTime, file);
         fread(mesh->Nu_top_time,    s3, nTime, file);
         fread(mesh->Nu_bottom_time, s3, nTime, file);
+        // Appended later (surface diagnostics): breakpoints written before this addition end here,
+        // the arrays then keep their calloc zeros for the restored steps
+        if ( fread(mesh->Vrms_surf_time, s3, nTime, file) != nTime ||
+             fread(mesh->q_top_time,     s3, nTime, file) != nTime ||
+             fread(mesh->q_bottom_time,  s3, nTime, file) != nTime ) {
+            LOG_WARN("Breakpoint file has no surface-diagnostics time series (older format): Vrms_surf/q_top/q_bottom set to 0 for steps 0...%d", model->step);
+            for ( size_t it=0; it<nTime; it++ ) { mesh->Vrms_surf_time[it] = 0.0; mesh->q_top_time[it] = 0.0; mesh->q_bottom_time[it] = 0.0; }
+        }
 
     fclose(file);
     free(name);
@@ -873,7 +881,10 @@ void MakeBreakpointParticles( markers *particles,  grid* mesh, markers *topo_cha
     fwrite(mesh->Eii_mean_time,  s3, nTime, file);
     fwrite(mesh->Vrms_time,      s3, nTime, file);
     fwrite(mesh->Nu_top_time,    s3, nTime, file);
-    fwrite(mesh->Nu_bottom_time, s3, nTime, file);    
+    fwrite(mesh->Nu_bottom_time, s3, nTime, file);
+    fwrite(mesh->Vrms_surf_time, s3, nTime, file);
+    fwrite(mesh->q_top_time,     s3, nTime, file);
+    fwrite(mesh->q_bottom_time,  s3, nTime, file);
 
     fclose(file);
     free(name);

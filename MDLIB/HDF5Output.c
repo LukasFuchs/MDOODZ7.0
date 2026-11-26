@@ -758,6 +758,9 @@ void WriteOutputHDF5( grid *mesh, markers *particles, surface *topo, markers* to
     AddFieldToGroup(  FileName, "TimeSeries", "Vrms_time"      , 'd', model.Nt+1,  mesh->Vrms_time      , 1 );
     AddFieldToGroup(  FileName, "TimeSeries", "Nu_top_time"    , 'd', model.Nt+1,  mesh->Nu_top_time    , 1 );
     AddFieldToGroup(  FileName, "TimeSeries", "Nu_bottom_time" , 'd', model.Nt+1,  mesh->Nu_bottom_time, 1 );
+    AddFieldToGroup(  FileName, "TimeSeries", "Vrms_surf_time" , 'd', model.Nt+1,  mesh->Vrms_surf_time, 1 );
+    AddFieldToGroup(  FileName, "TimeSeries", "q_top_time"     , 'd', model.Nt+1,  mesh->q_top_time    , 1 );
+    AddFieldToGroup(  FileName, "TimeSeries", "q_bottom_time"  , 'd', model.Nt+1,  mesh->q_bottom_time , 1 );
 
 
     // Grid coordinate arrays

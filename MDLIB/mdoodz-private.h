@@ -109,11 +109,13 @@ typedef struct {
   double *rho0_n;
   double  Uthermal, Uelastic, Work, 
           Vrms, Nu_top, Nu_bottom,
+          Vrms_surf, q_top, q_bottom,
           P_mean, T_mean,
           sxxd_mean, szzd_mean, sxz_mean, Tii_mean, 
           exxd_mean, ezzd_mean, exz_mean, Eii_mean;
   double *Work_time, *Uelastic_time, *Uthermal_time,
          *Vrms_time, *Nu_top_time, *Nu_bottom_time,
+         *Vrms_surf_time, *q_top_time, *q_bottom_time,
          *Time_time, *Short_time,
           *P_mean_time, *T_mean_time, 
           *sxxd_mean_time, *szzd_mean_time, *sxz_mean_time, *Tii_mean_time, 

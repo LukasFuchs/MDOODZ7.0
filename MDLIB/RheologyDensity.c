@@ -2359,6 +2359,9 @@ void LogTimeSeries( grid* mesh, params model, scale scaling ) {
   mesh->Vrms_time[model.step]      = mesh->Vrms*scaling.V;
   mesh->Nu_top_time[model.step]    = mesh->Nu_top;
   mesh->Nu_bottom_time[model.step] = mesh->Nu_bottom;
+  mesh->Vrms_surf_time[model.step] = mesh->Vrms_surf*scaling.V;
+  mesh->q_top_time[model.step]     = mesh->q_top   *scaling.k*scaling.T/scaling.L;
+  mesh->q_bottom_time[model.step]  = mesh->q_bottom*scaling.k*scaling.T/scaling.L;
 
   LOG_INFO(
     "Time-series step %d: Vrms = %.15e, Nu_top = %.15e, Nu_bottom = %.15e",
@@ -2366,7 +2369,15 @@ void LogTimeSeries( grid* mesh, params model, scale scaling ) {
     mesh->Vrms_time[model.step],
     mesh->Nu_top_time[model.step],
     mesh->Nu_bottom_time[model.step]
-  );  
+  );
+  LOG_INFO(
+    "Time-series step %d: Vrms_surf = %.15e, M = %.6e, q_top = %.15e W/m2, q_bottom = %.15e W/m2",
+    model.step,
+    mesh->Vrms_surf_time[model.step],
+    (mesh->Vrms > 0.0) ? mesh->Vrms_surf/mesh->Vrms : 0.0,
+    mesh->q_top_time[model.step],
+    mesh->q_bottom_time[model.step]
+  );
 
 }
 
@@ -2455,6 +2466,20 @@ void ComputeMeanQuantitesForTimeSeries( grid *mesh ) {
   mesh->Tii_mean  = Tii_mean  /N;
   mesh->Vrms      = sqrt(V2_sum/N);
 
+  // Surface rms velocity: Vx on the top row of Vx nodes inside the domain (half a cell below the
+  // surface; equal to the surface value up to O(dz^2) for free slip), trapezoidal rule in x.
+  // Mobility M = Vrms_surf/Vrms (Tackley 2000).
+  {
+    const int lsurf = Ncz;                    // Vx row of the top centroid row (rows 0 and Ncz+1 are ghosts)
+    double Vs2_sum = 0.0;
+    for ( int kx=0; kx<Nvx; kx++ ) {
+      const double w  = (kx==0 || kx==Nvx-1) ? 0.5 : 1.0;
+      const double vx = mesh->u_in[kx + lsurf*Nvx];
+      Vs2_sum += w*vx*vx;
+    }
+    mesh->Vrms_surf = sqrt(Vs2_sum/(Nvx-1));
+  }
+
 }
 
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -2463,23 +2488,36 @@ void ComputeMeanQuantitesForTimeSeries( grid *mesh ) {
 
 void ComputeNusseltNumber(grid *mesh) {
 
-  const int Ncx = mesh->Nx - 1;
-  const int Ncz = mesh->Nz - 1;
-  const int NTX = Ncx + 2;
+  // Boundary heat fluxes and Nusselt numbers from the half-cell temperature gradient between the
+  // boundary centroid row and the Dirichlet boundary value (uniform grid).
+  //   q_top    = k (T_cell - T_bc)/(dz/2) at the top    (positive = heat leaving through the top)
+  //   q_bottom = k (T_bc - T_cell)/(dz/2) at the bottom (positive = heat entering through the bottom)
+  // q_top / q_bottom are computed wherever that boundary has Dirichlet nodes (scaled units; LogTimeSeries
+  // converts to W/m^2). Nu_top / Nu_bottom need a temperature contrast and are only computed when both
+  // boundaries are Dirichlet (e.g. bottom-heated); otherwise they are set to 0.
+  // For internally heated models (zero-flux bottom) use q_top: nondimensional q* = q_top H/(k DeltaT).
+
+  const int Ncx  = mesh->Nx - 1;
+  const int Ncz  = mesh->Nz - 1;
+  const int NTX  = Ncx + 2;
+  const int Nxvz = mesh->Nx + 1;
 
   double Ttop_cell_sum = 0.0;
   double Ttop_bc_sum   = 0.0;
   double Tbot_cell_sum = 0.0;
   double Tbot_bc_sum   = 0.0;
+  double qtop_sum      = 0.0;
+  double qbot_sum      = 0.0;
 
   int Ntop = 0;
   int Nbot = 0;
 
 #pragma omp parallel for \
   shared(mesh) \
-  firstprivate(Ncx, Ncz, NTX) \
+  firstprivate(Ncx, Ncz, NTX, Nxvz) \
   reduction(+:Ttop_cell_sum, Ttop_bc_sum, \
               Tbot_cell_sum, Tbot_bc_sum, \
+              qtop_sum, qbot_sum, \
               Ntop, Nbot)
   for (int k = 0; k < Ncx; k++) {
 
@@ -2487,13 +2525,15 @@ void ComputeNusseltNumber(grid *mesh) {
     const int cbot   = k;
     const int c1bot  = (k + 1) + NTX;
     const int ibotBC = c1bot - NTX;
+    const int kzbot  = k + 1;                 // Vz-grid face below the bottom centroid row
 
     if (mesh->BCp.type[cbot] != 30 &&
         mesh->BCp.type[cbot] != 31 &&
-	mesh->BCT_exp.type[ibotBC] == 1) {
+        mesh->BCT_exp.type[ibotBC] == 1) {
 
       Tbot_cell_sum += mesh->T[cbot];
       Tbot_bc_sum   += mesh->BCT_exp.val[ibotBC];
+      qbot_sum      += mesh->kz[kzbot]*(mesh->BCT_exp.val[ibotBC] - mesh->T[cbot])/(0.5*mesh->dz);
       Nbot++;
     }
 
@@ -2501,22 +2541,25 @@ void ComputeNusseltNumber(grid *mesh) {
     const int ctop   = k + (Ncz - 1)*Ncx;
     const int c1top  = (k + 1) + Ncz*NTX;
     const int itopBC = c1top + NTX;
+    const int kztop  = k + 1 + Ncz*Nxvz;      // Vz-grid face above the top centroid row
 
     if (mesh->BCp.type[ctop] != 30 &&
         mesh->BCp.type[ctop] != 31 &&
-	mesh->BCT_exp.type[itopBC] == 1) {
+        mesh->BCT_exp.type[itopBC] == 1) {
 
       Ttop_cell_sum += mesh->T[ctop];
       Ttop_bc_sum   += mesh->BCT_exp.val[itopBC];
+      qtop_sum      += mesh->kz[kztop]*(mesh->T[ctop] - mesh->BCT_exp.val[itopBC])/(0.5*mesh->dz);
       Ntop++;
     }
   }
 
-  if (Ntop == 0 || Nbot == 0) {
-    mesh->Nu_top    = 0.0;
-    mesh->Nu_bottom = 0.0;
-    return;
-  }
+  mesh->q_top     = (Ntop > 0) ? qtop_sum/Ntop : 0.0;
+  mesh->q_bottom  = (Nbot > 0) ? qbot_sum/Nbot : 0.0;
+  mesh->Nu_top    = 0.0;
+  mesh->Nu_bottom = 0.0;
+
+  if (Ntop == 0 || Nbot == 0) return;
 
   const double Ttop_cell = Ttop_cell_sum/Ntop;
   const double Ttop      = Ttop_bc_sum/Ntop;
@@ -2527,11 +2570,7 @@ void ComputeNusseltNumber(grid *mesh) {
   const double deltaT = Tbot - Ttop;
   const double H      = Ncz*mesh->dz;
 
-  if (deltaT == 0.0) {
-    mesh->Nu_top    = 0.0;
-    mesh->Nu_bottom = 0.0;
-    return;
-  }
+  if (deltaT == 0.0) return;
 
   mesh->Nu_top =
       2.0*H/(mesh->dz*deltaT) *
