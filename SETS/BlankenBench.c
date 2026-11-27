@@ -112,7 +112,9 @@ SetBC SetBCT(MdoodzInput *input, POSITION position, Coordinates coordinates, dou
   return bc;
 }
 
-int main() {
+int main(int nargs, char *args[]) {
+  // input file: first command-line argument (e.g. from mdoodz_run --txt), default BlankenBench.txt
+  char *input_file = (nargs > 1) ? args[1] : "BlankenBench.txt";
   MdoodzSetup setup = {
           .SetParticles = &(SetParticles_ff){
                   .SetPhase       = SetPhase,
@@ -126,5 +128,5 @@ int main() {
                   .SetBCT     = SetBCT,
           },
   };
-  RunMDOODZ("BlankenBench.txt", &setup);
+  RunMDOODZ(input_file, &setup);
 }

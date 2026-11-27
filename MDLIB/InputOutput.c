@@ -1119,8 +1119,7 @@ Input ReadInputFile( char *fileName ) {
 
     fin = fopen(fileName,"rt");
     if (fin == NULL) {
-        LOG_INFO("Setup file '%s' does not exist\nExiting...", fileName);
-        fclose(fin);
+        LOG_ERR("Setup file '%s' does not exist\nExiting...", fileName);
         exit(1);
     }
 
